@@ -6,3 +6,5 @@ __pycache__/
 artifacts/
 .env
 .DS_Store
+kaggle.json
+.kaggle/

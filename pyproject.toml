@@ -37,7 +37,7 @@ default-groups = ["dev", "lint"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py313"
 preview = true
 
 [tool.ruff.lint]

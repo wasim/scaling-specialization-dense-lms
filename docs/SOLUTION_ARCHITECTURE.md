@@ -29,12 +29,14 @@ Collect FFN activations, measure activation sparsity (AS).
 
 ---
 
-### 2. SAE Training (⚠️ `sdlms.cli.sae_train`)
-Train sparse autoencoders via `sae-lens`.
+### 2. SAE Training (✅ Use Pre-trained)
+**Strategy:** EleutherAI already trained SAEs on Pythia models.
 
-**Outputs:** `artifacts/YYYYMMDD/sae/layer_X/{sae_weights.pt, config.json}`
+**Options:**
+- **Pre-trained:** `sparsify` library (`pip install eai-sparsify`) + HuggingFace Hub
+- **Custom training:** `python -m sparsify EleutherAI/pythia-70m` (TopK activation, no L1)
 
-**Blockers:** API integration, activation format (NPY vs HDF5).
+**Decision:** Use pre-trained SAEs first; train custom only if coverage gaps.
 
 ---
 
@@ -98,3 +100,4 @@ artifacts/YYYYMMDD/
 - **Single GPU (A100 80GB or similar):** required for activation capture and SAE training on Pythia 70M–1B. Allocate ~8–12 GPU hours per layer for SAE sweeps; dynamic-k profiling also lives here.
 - **Multi-GPU / Cluster:** needed once scaling to multiple sizes (410M–2.8B+) and layers concurrently. Request at least 2×A100 (or H100) to parallelize capture + SAE, with >1 TB SSD scratch for activation dumps.
 - Workflow: validate locally (tiny runs), run 70M layer on single GPU, then schedule scaling sweeps on cluster.
+- **Kaggle quotas:** 30 GPU hours & 20 TPU hours weekly. Keep jobs short (≤2 h), upload heavy artifacts to Kaggle Datasets if needed, and install credentials by copying `kaggle.json` into `~/.kaggle/` with `chmod 600`.

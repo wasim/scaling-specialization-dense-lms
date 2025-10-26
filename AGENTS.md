@@ -22,3 +22,4 @@ Future work inherits these rules—if code reads like “AI slop”, it doesn’
 - Define probe task manifest (`data/probe_tasks.jsonl`) and update capture pipeline.
 - Flesh out `sdlms.cli.si_modularity` to consume SAE outputs and produce SI/Q CSVs.
 - Prototype dynamic-k evaluation and logging in `sdlms.cli.dynamic_k`.
+- Set up Kaggle credentials (`~/.kaggle/kaggle.json`, chmod 600) and run a Kaggle quickstart notebook.
