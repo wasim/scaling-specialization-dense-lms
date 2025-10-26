@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import time
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -11,6 +12,8 @@ import torch
 from datasets import load_dataset
 from torch import Tensor
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from sdlms.probe_tasks import ProbeTask, load_probe_tasks, select_probe_tasks
 
 
 @dataclass
@@ -122,6 +125,20 @@ def parse_args() -> argparse.Namespace:
         default='auto',
         help='Computation dtype',
     )
+    parser.add_argument(
+        '--probe-manifest',
+        type=Path,
+        help=(
+            'JSONL manifest describing probe tasks '
+            '(overrides prompt/dataset arguments when provided)'
+        ),
+    )
+    parser.add_argument(
+        '--task-id',
+        dest='task_ids',
+        action='append',
+        help='Task IDs from the manifest to execute (repeatable). Defaults to all tasks.',
+    )
     return parser.parse_args()
 
 
@@ -139,9 +156,13 @@ def resolve_dtype(arg: str, device: torch.device) -> torch.dtype:
     return torch.float32
 
 
-def build_output_paths(base_dir: Path, model_name: str) -> tuple[Path, Path]:
+def build_output_paths(
+    base_dir: Path, model_name: str, task: ProbeTask | None = None
+) -> tuple[Path, Path]:
     timestamp = time.strftime('%Y%m%d-%H%M%S')
     slug = slugify(model_name)
+    if task is not None:
+        slug += f'_{slugify(task.task_id)}'
     base_dir.mkdir(parents=True, exist_ok=True)
     csv_path = base_dir / f'{timestamp}_{slug}_sparsity.csv'
     meta_path = base_dir / f'{timestamp}_{slug}_meta.jsonl'
@@ -200,7 +221,10 @@ def register_hooks(
     return handles
 
 
-def resolve_text_stream(args: argparse.Namespace) -> Iterator[str]:
+def resolve_text_stream(args: argparse.Namespace, probe_task: ProbeTask | None) -> Iterator[str]:
+    if probe_task is not None:
+        yield from probe_task.iter_texts()
+        return
     if args.prompt is not None:
         count = 1 if args.num_docs == -1 else max(1, args.num_docs)
         for _ in range(count):
@@ -209,7 +233,7 @@ def resolve_text_stream(args: argparse.Namespace) -> Iterator[str]:
     yield from iter_dataset_texts(args.dataset, args.split, args.num_docs)
 
 
-def run(args: argparse.Namespace) -> tuple[Path, Path]:
+def run(args: argparse.Namespace, *, probe_task: ProbeTask | None = None) -> tuple[Path, Path]:
     device = infer_device()
     torch.manual_seed(0)
 
@@ -236,48 +260,82 @@ def run(args: argparse.Namespace) -> tuple[Path, Path]:
     handles = register_hooks(model, layer_names, stats, args.threshold)
 
     total_tokens = 0
-    text_stream = resolve_text_stream(args)
-    batches = tokenize_batches(tokenizer, text_stream, args.max_tokens, device)
+    effective_max_tokens = (
+        probe_task.max_tokens
+        if probe_task and probe_task.max_tokens is not None
+        else args.max_tokens
+    )
+    text_stream = resolve_text_stream(args, probe_task)
+    batches = tokenize_batches(tokenizer, text_stream, effective_max_tokens, device)
+    texts_processed = 0
 
     with torch.no_grad():
         for batch in batches:
+            texts_processed += 1
             total_tokens += batch['input_ids'].numel()
             model(**batch)
 
     for handle in handles:
         handle.remove()
 
-    csv_path, meta_path = build_output_paths(args.output_dir, args.model)
+    csv_path, meta_path = build_output_paths(args.output_dir, args.model, probe_task)
 
-    with csv_path.open('w', newline='') as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=['layer', 'frac', 'pr'])
+    fieldnames = ['layer', 'frac', 'pr']
+    if probe_task is not None:
+        fieldnames.insert(0, 'task_id')
+
+    with csv_path.open('w', newline='', encoding='utf-8') as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
         for layer_name, running in stats.items():
             result = running.finalize()
-            writer.writerow({'layer': layer_name, **result})
+            row = {'layer': layer_name, **result}
+            if probe_task is not None:
+                row['task_id'] = probe_task.task_id
+            writer.writerow(row)
 
     meta = {
         'model': args.model,
-        'dataset': args.dataset,
-        'split': args.split,
-        'num_docs': args.num_docs,
-        'max_tokens': args.max_tokens,
         'threshold': args.threshold,
         'dtype': str(dtype),
         'device': device.type,
         'tokens_processed': total_tokens,
         'layers': layer_names,
+        'max_tokens': effective_max_tokens,
+        'texts_processed': texts_processed,
     }
-    meta_path.write_text(f'{meta}\n')
+    if probe_task is None:
+        meta.update(
+            {
+                'dataset': args.dataset,
+                'split': args.split,
+                'num_docs': args.num_docs,
+                'max_tokens_arg': args.max_tokens,
+            }
+        )
+    else:
+        meta['task'] = probe_task.metadata()
+
+    meta_path.write_text(json.dumps(meta) + '\n', encoding='utf-8')
 
     return csv_path, meta_path
 
 
 def main() -> None:
     args = parse_args()
-    csv_path, meta_path = run(args)
-    print(f'[sparsity] wrote metrics to {csv_path}')
-    print(f'[sparsity] wrote metadata to {meta_path}')
+    if args.probe_manifest:
+        manifest = load_probe_tasks(args.probe_manifest)
+        tasks = select_probe_tasks(manifest, args.task_ids)
+        if not tasks:
+            raise SystemExit('No tasks selected from probe manifest.')
+        for task in tasks:
+            csv_path, meta_path = run(args, probe_task=task)
+            print(f'[sparsity] task {task.task_id} wrote metrics to {csv_path}')
+            print(f'[sparsity] task {task.task_id} wrote metadata to {meta_path}')
+    else:
+        csv_path, meta_path = run(args)
+        print(f'[sparsity] wrote metrics to {csv_path}')
+        print(f'[sparsity] wrote metadata to {meta_path}')
 
 
 if __name__ == '__main__':

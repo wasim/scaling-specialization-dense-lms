@@ -29,7 +29,7 @@ PY
 
 ```bash
 # 1) Capture activations on small probe tasks
-python scripts/run_capture.py --model EleutherAI/pythia-410m-deduped --tokens 200000
+python scripts/run_capture.py --model EleutherAI/pythia-410m-deduped --task-id ioi_minimal --layers model.layers.10.mlp
 
 # 2) Train SAEs (separate tool) and export features
 
@@ -47,7 +47,7 @@ python scripts/run_dynamick_eval.py --k 0.35
 uv sync --all-groups
 
 # measure activation sparsity with a prompt (writes CSV to artifacts/sparsity)
-uv run sparsity --model EleutherAI/pythia-70m-deduped --prompt "Testing sparsity" --num-docs 1
+uv run sparsity --model EleutherAI/pythia-70m-deduped --probe-manifest data/probe_tasks.jsonl --task-id toy_arithmetic
 
 # launch a notebook to inspect results
 uvx jupyter lab

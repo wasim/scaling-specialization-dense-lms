@@ -25,7 +25,7 @@ Collect FFN activations, measure activation sparsity (AS).
 
 **Outputs:** `artifacts/YYYYMMDD/sparsity.csv`, `meta.jsonl`
 
-**TODO:** Wire `data/probe_tasks.jsonl` for multi-task capture.
+**Status:** `data/probe_tasks.jsonl` drives multi-task capture via `sdlms.cli.sparsity` and `scripts/run_capture.py`.
 
 ---
 

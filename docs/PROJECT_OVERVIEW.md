@@ -14,7 +14,7 @@ Dense transformers, even without routers, acquire sparse, modular internal struc
 
 ## Current State
 
-- `sdlms.cli.sparsity` emits CSV/metadata under `artifacts/sparsity/`.
+- `sdlms.cli.sparsity` emits CSV/metadata under `artifacts/sparsity/` (now consumes `data/probe_tasks.jsonl`).
 - Placeholder CLIs exist for SI/modularity, SAE training, and dynamic-k; they should load artifacts from phase 1.
 - `tests/test_sparsity_cli.py` is the regression guard; add similar tests when implementing the remaining CLIs.
 
