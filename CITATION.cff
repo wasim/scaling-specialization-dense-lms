@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: If you use this repository, please cite it as below.
+authors:
+  - family-names: Akram
+    given-names: Wasim
+    email: mailwasim@gmail.com
+    affiliation: VML MAP (WPP); AI Centre Denmark (P1 Affiliated Researcher)
+title: Scaling Specialization in Dense Language Models
+version: 0.1.0
+date-released: 2025-10-26
+license: MIT
+repository-code: https://github.com/wasim/scaling-specialization-dense-lms

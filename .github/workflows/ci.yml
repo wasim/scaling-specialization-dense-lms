@@ -1,0 +1,30 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install -U pip
+          pip install -e .
+      - name: Lint
+        run: |
+          source .venv/bin/activate
+          pip install ruff black
+          ruff check .
+          black --check .
+      - name: Smoke tests
+        run: |
+          source .venv/bin/activate
+          python - <<'PY'
+from importlib import import_module
+import_module('sdlms')
+print('import ok')
+PY

@@ -1,0 +1,3 @@
+- Python ≥ 3.10, `pip install -e .`
+- Run `ruff` + `black --check` before PRs.
+- Include seeds/configs in PR description for reproducibility.

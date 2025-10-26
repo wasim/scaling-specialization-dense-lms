@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sdlms"
+version = "0.1.0"
+description = "Scaling specialization & sparsity in dense LMs: metrics, SAEs, and dynamic-k execution"
+authors = [{name = "Wasim Akram", email = "mailwasim@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.2",
+  "transformers>=4.44",
+  "accelerate>=0.33",
+  "datasets>=2.19",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "networkx>=3.2",
+  "tqdm>=4.66",
+  "matplotlib>=3.8",
+  "pandas>=2.2"
+]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+select = ["E","F","I","UP","B","SIM","C90"]

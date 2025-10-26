@@ -1,0 +1,24 @@
+name: Research Task
+description: Plan/track a unit of research work (repro, metric, plot, ablation)
+title: "[R] <short description>"
+labels: [research]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Goal:** What result or figure should exist when this closes?
+  - type: textarea
+    id: plan
+    attributes:
+      label: Plan
+      description: Steps, datasets, models, expected runtime
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Done when
+      options:
+        - label: code checked in
+        - label: figure uploaded
+        - label: brief summary comment posted
