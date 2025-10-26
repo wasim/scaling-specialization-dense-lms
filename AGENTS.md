@@ -18,7 +18,7 @@ Future work inherits these rules—if code reads like “AI slop”, it doesn’
 
 ## Next actions
 
-- Implement `sdlms.cli.sae_train` with SAELens.
+- Validate the new `sdlms.cli.sae_train` loop on real activations (swap in SAELens once probe data lands).
 - Define probe task manifest (`data/probe_tasks.jsonl`) and update capture pipeline.
 - Flesh out `sdlms.cli.si_modularity` to consume SAE outputs and produce SI/Q CSVs.
 - Prototype dynamic-k evaluation and logging in `sdlms.cli.dynamic_k`.
