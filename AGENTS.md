@@ -9,3 +9,16 @@ This project leans on the spirit of [agents.md](https://agents.md/): build small
 5. **Compost fast.** If scaffolds stop pulling their weight, delete them; entropy is the enemy.
 
 Future work inherits these rules—if code reads like “AI slop”, it doesn’t merge.
+
+## Solution architecture
+
+- Core CLIs (sparsity, sae_train, si_modularity, dynamic_k) feed artifacts into notebooks and reports; keep each script a self-contained loop.
+- Artifacts follow `artifacts/YYYYMMDD-<desc>/` convention.
+- Future modules (e.g., gating predictors) should slot into `src/sdlms/cli/`.
+
+## Next actions
+
+- Implement `sdlms.cli.sae_train` with SAELens.
+- Define probe task manifest (`data/probe_tasks.jsonl`) and update capture pipeline.
+- Flesh out `sdlms.cli.si_modularity` to consume SAE outputs and produce SI/Q CSVs.
+- Prototype dynamic-k evaluation and logging in `sdlms.cli.dynamic_k`.

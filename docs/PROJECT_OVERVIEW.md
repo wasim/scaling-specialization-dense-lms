@@ -45,3 +45,9 @@ Dense transformers, even without routers, acquire sparse, modular internal struc
 3. Wire `sdlms.cli.si_modularity` + `dynamic_k` for scaling experiments.
 
 Document progress here whenever major workflows land so future Codex sessions stay aligned.
+
+## Next Actions
+
+1. Implement `sdlms.cli.sae_train` (SAELens integration).
+2. Create `data/probe_tasks.jsonl` and update activation capture.
+3. Fill in `sdlms.cli.si_modularity` and `dynamic_k`.
