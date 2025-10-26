@@ -40,6 +40,19 @@ python scripts/run_metrics.py
 python scripts/run_dynamick_eval.py --k 0.35
 ```
 
+### CLI quickstart
+
+```bash
+# install dependencies through uv (preferred)
+uv sync --all-groups
+
+# measure activation sparsity with a prompt (writes CSV to artifacts/sparsity)
+uv run sparsity --model EleutherAI/pythia-70m-deduped --prompt "Testing sparsity" --num-docs 1
+
+# launch a notebook to inspect results
+uvx jupyter lab
+```
+
 ## Reproducibility
 
 * Deterministic seeds where possible

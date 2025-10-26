@@ -1,3 +1,3 @@
-- Python ≥ 3.10, `pip install -e .`
-- Run `ruff` + `black --check` before PRs.
-- Include seeds/configs in PR description for reproducibility.
+- Python ≥ 3.13 (managed via `uv`): run `uv sync --all-groups`
+- Run `uvx ruff check --fix .` and `uvx ruff format .` before pushing.
+- Include seeds/configs in PR descriptions for reproducibility.

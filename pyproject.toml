@@ -8,23 +8,43 @@ version = "0.1.0"
 description = "Scaling specialization & sparsity in dense LMs: metrics, SAEs, and dynamic-k execution"
 authors = [{name = "Wasim Akram", email = "mailwasim@gmail.com"}]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13,<3.14"
 dependencies = [
-  "torch>=2.2",
+  "torch",
   "transformers>=4.44",
-  "accelerate>=0.33",
-  "datasets>=2.19",
-  "numpy>=1.26",
-  "scipy>=1.11",
-  "networkx>=3.2",
-  "tqdm>=4.66",
-  "matplotlib>=3.8",
-  "pandas>=2.2"
+  "datasets",
+  "accelerate",
+  "evaluate",
+  "networkx",
+  "numpy",
+  "pandas",
+  "matplotlib",
+  "sae-lens",
 ]
 
-[tool.black]
-line-length = 100
+[project.scripts]
+sparsity = "sdlms.cli.sparsity:main"
+si-modularity = "sdlms.cli.si_modularity:main"
+sae-train = "sdlms.cli.sae_train:main"
+dynamic-k = "sdlms.cli.dynamic_k:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+lint = ["ruff>=0.5"]
+
+[tool.uv]
+default-groups = ["dev", "lint"]
 
 [tool.ruff]
 line-length = 100
-select = ["E","F","I","UP","B","SIM","C90"]
+target-version = "py314"
+preview = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "ANN"]
+fixable = ["ALL"]
+per-file-ignores = { "src/__init__.py" = ["F401"], "src/sdlms/__init__.py" = ["F401"] }
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = true

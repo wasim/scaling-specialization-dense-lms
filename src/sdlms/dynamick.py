@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import torch
 
-def topk_gate(x: torch.Tensor, k: float | int):
+
+def topk_gate(x: torch.Tensor, k: float | int) -> torch.Tensor:
     if isinstance(k, float):
         k_count = max(1, int(x.size(-1) * k))
     else:
