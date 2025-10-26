@@ -2,12 +2,15 @@
 
 ## High-Level Flow
 
-```
-Raw text/tasks  ──>  sdlms.cli.sparsity  ┐
-                        │                │
-Activations (NPY/HDF5) ─┤──> SAE Training │──> SI & Modularity CLI ──> Reports/Plots
-                        │                │
-Dynamic-k CLI <─────────┘                └──> notebooks/*.ipynb
+```mermaid
+graph TD
+    A[Probe tasks / prompts] -->|capture| B[sdlms.cli.sparsity]
+    B -->|activations (NPY/HDF5)| C[sdlms.cli.sae_train]
+    C -->|features + SAE ckpts| D[sdlms.cli.si_modularity]
+    C -->|gating features| E[sdlms.cli.dynamic_k]
+    D --> F[Metrics CSV + Reports]
+    E --> F
+    F --> G[Notebooks / Visuals]
 ```
 
 ## Components
