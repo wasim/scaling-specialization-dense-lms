@@ -8,3 +8,4 @@ artifacts/
 .DS_Store
 kaggle.json
 .kaggle/
+sdlms.egg-info/
