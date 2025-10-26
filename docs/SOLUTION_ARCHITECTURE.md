@@ -1,261 +1,96 @@
-# Solution Architecture (Living Document)
+# Solution Architecture
 
-**Last Updated:** October 26, 2025  
-**Status:** Phase 1 (Measurement) — 40% complete
-
----
-
-## Pipeline Overview
+## Pipeline
 
 ```mermaid
 flowchart LR
-    A[Probe Tasks] --> B[1. Capture]
-    B -->|activations| C[2. Train SAEs]
-    B -->|activations| D[3. Compute SI/Q]
+    A[Probe Tasks] --> B[Capture]
+    B -->|activations| C[Train SAEs]
+    B -->|activations| D[Compute SI/Q]
     C -->|features| D
-    C -->|features| E[4. Dynamic-k Eval]
+    C -->|features| E[Dynamic-k Eval]
     D -->|metrics| F[Artifacts]
-    E -->|throughput curves| F
+    E -->|curves| F
     F --> G[Notebooks]
-    
-    style B fill:#e1f5e1
-    style C fill:#fff4e1
-    style D fill:#fff4e1
-    style E fill:#fff4e1
-    style F fill:#e1e5f5
-    style G fill:#f5e1f5
 ```
 
-**Legend:**  
-🟢 Working | 🟡 Stub | 🔴 Blocked
+**Status:** Capture working, SAE/SI/dynamic-k are stubs.
 
 ---
 
-## Core Components
+## Components
 
-### 1. Activation Capture 🟢
-**Tool:** `sdlms.cli.sparsity`  
-**Status:** Production-ready with streaming + hooks
+### 1. Capture (✅ `sdlms.cli.sparsity`)
+Collect FFN activations, measure activation sparsity (AS).
 
-**Purpose:** Collect FFN activations across probe tasks, measure baseline sparsity (AS).
+**Outputs:** `artifacts/YYYYMMDD/sparsity.csv`, `meta.jsonl`
 
-**Input:**
-- Model checkpoint (HF Hub)
-- Probe dataset (text corpus or task manifest)
-- Layer selection (automatic or manual)
-
-**Output:**
-```
-artifacts/YYYYMMDD_HHMMSS/
-  sparsity.csv              # layer, frac, pr
-  meta.jsonl                # config + runtime stats
-  acts_<task>_<layer>.npy   # raw activations (future)
-```
-
-**Key Decisions:**
-- Streaming to avoid OOM (tokenize → forward → hook → save)
-- Per-layer `RunningActivationStats` for memory efficiency
-- Threshold = 0.0 (count all positive activations)
-
-**Next:** Integrate `data/probe_tasks.jsonl` for multi-task capture
+**TODO:** Wire `data/probe_tasks.jsonl` for multi-task capture.
 
 ---
 
-### 2. SAE Training 🟡
-**Tool:** `sdlms.cli.sae_train` (stub)  
-**Status:** Placeholder — needs `sae-lens` integration
+### 2. SAE Training (⚠️ `sdlms.cli.sae_train`)
+Train sparse autoencoders via `sae-lens`.
 
-**Purpose:** Learn sparse, interpretable features from captured activations.
+**Outputs:** `artifacts/YYYYMMDD/sae/layer_X/{sae_weights.pt, config.json}`
 
-**Input:**
-- Activations from step 1 (`acts_<task>_<layer>.npy`)
-- Hyperparameters: L1 coefficient, expansion factor, learning rate
-
-**Output:**
-```
-artifacts/YYYYMMDD/sae/layer_<name>/
-  sae_weights.pt            # encoder/decoder weights
-  config.json               # hyperparams + training metadata
-  reconstruction_loss.csv   # train/val loss curves
-```
-
-**Key Decisions:**
-- Use `sae-lens` library (already in dependencies)
-- 80/20 train/val split for L1 hyperparameter search
-- Dictionary size = 8× hidden_dim (configurable)
-- Early stopping on validation reconstruction loss
-
-**Blockers:**
-- API integration with `sae-lens.LanguageModelSAERunnerConfig`
-- Activation format standardization (NPY vs HDF5)
+**Blockers:** API integration, activation format (NPY vs HDF5).
 
 ---
 
-### 3. Specialization & Modularity 🟡
-**Tool:** `sdlms.cli.si_modularity` (stub)  
-**Status:** Core functions exist (`metrics.py`), CLI wiring needed
+### 3. SI/Modularity (⚠️ `sdlms.cli.si_modularity`)
+Compute specialization index (SI) and graph modularity (Q).
 
-**Purpose:** Measure neuron specialization (SI) and community structure (Q).
+**Inputs:** Multi-task activations + optional SAE features.
 
-**Input:**
-- Multi-task activations from step 1
-- SAE features from step 2 (optional — can run on raw activations)
-
-**Output:**
-```
-artifacts/YYYYMMDD/si_modularity.csv
-# layer, task, SI, Q, n_communities
-```
-
-**Algorithm:**
-1. Compute per-neuron task probabilities: `P(task | neuron > threshold)`
-2. Calculate entropy-based SI: `1 - H(P) / log(K)`
-3. Build co-activation graph from PMI
-4. Detect communities, compute modularity Q
-
-**Key Decisions:**
-- Task probe diversity matters (6+ tasks recommended)
-- SI requires ≥500 samples per task for stable estimates
-- Q uses top-200 PMI edges to avoid noise
+**Outputs:** `artifacts/YYYYMMDD/si_modularity.csv`
 
 ---
 
-### 4. Dynamic-k Efficiency 🟡
-**Tool:** `sdlms.cli.dynamic_k` (stub)  
-**Status:** `topk_gate()` helper exists, needs eval harness
+### 4. Dynamic-k (⚠️ `sdlms.cli.dynamic_k`)
+Profile throughput vs perplexity with sparse execution.
 
-**Purpose:** Exploit sparsity for FLOPs reduction via selective neuron execution.
+**Outputs:** `artifacts/YYYYMMDD/dynamic_k.csv` (k, ppl, tokens/sec)
 
-**Input:**
-- Model checkpoint
-- Validation dataset (WikiText-103)
-- k sweep: [0.1, 0.2, 0.3, 0.5, 0.7, 1.0]
-
-**Output:**
-```
-artifacts/YYYYMMDD/dynamic_k.csv
-# k, perplexity, tokens_per_sec, flops_reduction, quality_delta
-```
-
-**Algorithm:**
-1. Monkey-patch MLP forward: `output *= topk_gate(pre_activation, k)`
-2. Profile throughput with `torch.cuda.synchronize()` timing
-3. Compute perplexity on fixed validation set
-4. Repeat for 3 seeds, report mean ± std
-
-**Key Decisions:**
-- Static gating first (learned gating = future work)
-- Profile on CUDA only (CPU/MPS don't optimize sparsity)
-- Baseline (k=1.0) must match unmodified model within 0.01 perplexity
+**Approach:** Monkey-patch MLP forward with `topk_gate()`.
 
 ---
 
-## Data Flow & Artifacts
+## Artifacts
 
-### Directory Structure
 ```
-data/
-  probe_tasks.jsonl         # Task manifest (TODO)
-
-artifacts/
-  20251026_143022/          # Timestamped run
-    sparsity.csv
-    si_modularity.csv
-    dynamic_k.csv
-    meta.jsonl
-    sae/
-      layer_10/
-        sae_weights.pt
-        config.json
-    acts/                   # Optional: cached activations
-      python_code_layer10.npy
-      math_layer10.npy
+artifacts/YYYYMMDD/
+  sparsity.csv
+  si_modularity.csv
+  dynamic_k.csv
+  meta.jsonl
+  sae/layer_X/{weights, config}
+  acts/task_X_layer_Y.npy  # optional cache
 ```
 
-### Artifact Guarantees
-- **Immutable:** Never overwrite timestamped runs
-- **Self-describing:** Every dir has `meta.jsonl` with config
-- **Reproducible:** Seed + model hash + dataset split logged
+**Rules:** Timestamped runs, never overwrite, include seed+model hash in metadata.
 
 ---
 
-## Scaling Suite Configuration
+## Scaling Suite
 
-**Models:** Pythia-deduped family (consistent training data)
-- pythia-70m, pythia-410m, pythia-1.4b, pythia-6.9b
+**Models:** Pythia 70M/410M/1.4B/6.9B (consistent training data)
 
-**Layer Selection:** Relative depth to enable cross-model comparison
-```python
-LAYERS = {
-    "pythia-70m": [2, 3, 5],       # 6 layers total
-    "pythia-410m": [6, 12, 18],    # 24 layers
-    "pythia-1.4b": [6, 12, 18],    # 24 layers
-    "pythia-6.9b": [8, 16, 24],    # 32 layers
-}
-```
+**Layers:** Probe at 25%/50%/75% depth for cross-model comparability.
 
-**Probe Tasks (Proposed):**
-- python_code (HumanEval)
-- math (GSM8K)
-- qa (SQuAD)
-- prose (WikiText)
-- dialogue (DailyDialog)
-- reasoning (ARC-Challenge)
-
----
-
-## Testing & CI
-
-**Principles:**
-- CLI smoke tests with tiny models (no GPU required)
-- Determinism tests: same seed → same output
-- No recomputation in notebooks (read-only artifact loading)
-
-**Current:**
-- ✅ Lint + import checks in CI
-- ⚠️ Need: `test_cli_determinism.py`, `test_metrics.py`
-
-**Future:**
-- Integration test: full pipeline on pythia-70m (1 layer, 100 samples)
-- Regression test: AS/SI values on frozen fixtures
+**Tasks:** Code, math, QA, prose, dialogue, reasoning (6 domains).
 
 ---
 
 ## Open Decisions
 
-### 1. Activation Storage Format
-**Options:** NPY (simple), HDF5 (chunked), HF Datasets (versioned)  
-**Current:** NPY for simplicity  
-**Revisit if:** Captures exceed 10GB per layer
-
-### 2. Hyperparameter Management
-**Options:** CLI args (current), Hydra configs, WandB sweeps  
-**Current:** CLI args  
-**Revisit when:** Running L1 sweeps across 4 models × 3 layers
-
-### 3. Dynamic-k Implementation
-**Options:** Static gating (current plan), learned router, MoE-style top-k  
-**Current:** Static (topk on magnitude)  
-**Revisit if:** Static gives <20% speedup
-
-### 4. Compute Environment
-**Current:** Local (MPS/CUDA)  
-**Scale-up options:** Cloud (Lambda Labs), cluster (Slurm), notebooks (Kaggle)  
-**Trigger:** When pythia-6.9b captures take >2 hours
+1. **Activation format:** NPY now, HDF5 if >10GB/layer.
+2. **Hyperparameter sweeps:** CLI args now, Hydra if L1 sweeps get complex.
+3. **Dynamic-k:** Static gating first, learned router if <20% speedup.
 
 ---
 
-## Evolution Notes
-
-**Week 1 (Oct 26):** Baseline architecture documented; sparsity CLI working  
-**Week 2 (Nov 2):** [TBD] SAE training + task probes integrated  
-**Week 3 (Nov 9):** [TBD] SI/Q + dynamic-k pipelines complete  
-**Week 4 (Nov 16):** [TBD] Full scaling sweep on 4 model sizes  
-**Week 5 (Nov 23):** [TBD] Notebooks + figures finalized
-
----
-
-*This document evolves with the project. Update after major architectural changes.*
+*Update after major changes to pipeline or blockers.*
 
 ## Compute Planning
 
