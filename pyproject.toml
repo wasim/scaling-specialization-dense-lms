@@ -29,7 +29,7 @@ sae-train = "sdlms.cli.sae_train:main"
 dynamic-k = "sdlms.cli.dynamic_k:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "kaggle>=1.6"]
 lint = ["ruff>=0.5"]
 
 [tool.uv]
