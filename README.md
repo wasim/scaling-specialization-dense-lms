@@ -12,6 +12,8 @@ Do **dense** transformers, without routers, develop **sparse, modular structure*
 
 > TL;DR — Specialization scales with size; you can cash it out for speed.
 
+![High-level SLMS flow](docs/images/Generated%20Image%20slms%20highlevel.png)
+
 ## Quickstart
 ```bash
 python -m venv .venv && source .venv/bin/activate
